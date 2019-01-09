@@ -1,45 +1,104 @@
 <!DOCTYPE HTML>
 <html>
 <head>
-  <script src="webroot/vis/dist/vis.js"></script>
-  <link href="webroot/vis/dist/vis.css" rel="stylesheet" type="text/css" />
-    <!--- CSS style -->
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="">
+    <meta name="author" content="Emily Yao">
+
+    <!-- VisJS CDN -->
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/vis/4.21.0/vis.min.js"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/vis/4.21.0/vis.min.css" rel="stylesheet" type="text/css" />
+    <link href="css/stylish-portfolio.css" rel="stylesheet">
+
+    <!-- jQuery CDN -->
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.12.2/jquery.min.js"></script>
+
+    <!-- select2 jQuery plugin CDN -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.6-rc.0/css/select2.min.css" rel="stylesheet" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.6-rc.0/js/select2.min.js"></script>
+
+    <!-- Custom CSS -->
+    <link href="css/stylish-portfolio.css" rel="stylesheet">
+
+    <!-- Custom Fonts -->
+    <link href="font-awesome/css/font-awesome.min.css" rel="stylesheet" type="text/css">
+    <link href="http://fonts.googleapis.com/css?family=Source+Sans+Pro:300,400,700,300italic,400italic,700italic" rel="stylesheet" type="text/css">
+
+    <!-- Ninja Slider-->
+	  <link href="css/ninja-slider.css" rel="stylesheet" type="text/css" />
+    <script src="js/ninja-slider.js" type="text/javascript"></script>
+
+    <!--- Network CSS style -->
     <style type="text/css">
         #mynetwork {
-            width: 1000px,
-            height: 1000px,
-            border: 1px solid lightgray;
+            width: 1200px;
+            height: 500px;
+            border: 1px solid lightgray
         }
     </style>
-    
-    
+
+    <title>Family Tree - Alpha Chi Sigma | Sigma Chapter</title>
 </head>
+
 <body>
-    <div id="mynetwork"></div>
+  <div class="bg-primary">
+		<br>
+		<center>
+		<h1> Family Tree </h1>
+		</center>
+		<br>
+	</div>
+  <h2>
+    Founded by Oral Caglar, 1988
+  </h2><center>
+    <div id="mynetwork"></div></center>
   <script type="text/javascript">
-      //Parsing
-      var gephiJson = loadJSON("FinalTree.json"); // tree from gephi
-      
-      var parserOptions = {
-          edges: {
-              inheritColors: false
-          },
-          nodes: {
-              fixed: true,
-              parseColor: true
-          }
-      };
-      
-      var parsed = vis.network.convertGephi(gephiJson, parserOptions);
-      
+
+  /**
+   * Taken from http://visjs.org/examples/network/data/importingFromGephi.html
+   * Created by Alex on 5/20/2015.
+   */
+
+      function loadJSON(path, success, error) {
+        var xhr = new XMLHttpRequest();
+        xhr.onreadystatechange = function () {
+        if (xhr.readyState === 4) {
+            if (xhr.status === 200) {
+                success(JSON.parse(xhr.responseText));
+            }
+            else {
+                error(xhr);
+            }
+        }
+        };
+        xhr.open('GET', path, true);
+        xhr.send();
+      }
+
+      var nodeArray;
+      var nodes = new vis.DataSet();
+      var edges = new vis.DataSet();
+
+      var gephiJson = loadJSON("http://127.0.0.1:8080/FinalTree.json", addAll, function(err) {console.log(err)}); // , redrawAll, function(err) {console.log('error')});
+      var gephiImported;
+      var parsed;
+
       var data = {
-          nodes: parsed.nodes,
-          edged: parsed.edges
+          nodes: nodes,
+          edges: edges
       };
-      
+
       var options = {
           edges: {
-              arrows: 'to, from'
+            arrows: {
+              to: {enabled: true, scaleFactor:0.75, type:'arrow'},
+              // to: {enabled: false, scaleFactor:0.5, type:'bar'},
+              //middle: {enabled: false, scalefactor:1, type:'arrow'},
+              //from: {enabled: true, scaleFactor:0.3, type:'arrow'}
+              // from: {enabled: false, scaleFactor:0.5, type:'arrow'}
+              }
           },
           nodes: {
               shape: 'box'
@@ -51,16 +110,136 @@
               hover: true,
           },
           layout: {
-              improvedLayout: false,
+              improvedLayout: true,
               hierarchical: {
                   enabled: true,
+                  nodeSpacing: 200,
+                  edgeMinimization: true,
+                  sortMethod: 'directed'
               }
           }
-      };
-      
+      }
+
       var container = document.getElementById("mynetwork");
-      
+
       var network = new vis.Network(container, data, options);
+
+      /**
+      * function that fills in DataSets
+      * based off of redrawAll on http://visjs.org/examples/network/data/importingFromGephi.html
+      */
+      function addAll(gephiJson) {
+        var parserOptions = {
+            edges: {
+                inheritColors: true
+            },
+            nodes: {
+                fixed: true,
+                parseColor: false
+            }
+        };
+
+        parsed = vis.network.convertGephi(gephiJson, parserOptions);
+
+        // for loop iteration
+        nodeArray = parsed.nodes;
+        // adding the 'text' attribute necessary for select2 to process options
+
+        var arrayLength = nodeArray.length;
+        for (var i = 0; i <  arrayLength; i++) {
+            nodeArray[i].id = parseInt(nodeArray[i].id, 10);
+            nodeArray[i].text = nodeArray[i].label;
+        }
+
+        nodes.add(parsed.nodes);
+        edges.add(parsed.edges);
+
+        $(document).ready(function(){
+            $('#searchbar').select2({
+                data: nodeArray,
+                // matcher: matchCustom,
+                selectOnClose: true,
+                allowClear: true,
+                // theme: 'classic',
+                placeholder: 'Brother Name - Class'
+            });
+            $('#searchbar').on('select2:select', function (e) {
+                console.log(e);
+                var selection = e.params.data;
+                cameraToNode(selection, network);
+            });
+        });
+      }
+
+
+      var initialViewPosition = {x: -89.3978884237081, y: 20.49948369864533};
+      network.moveTo({position: initialViewPosition, scale: 0.065});
+
+
+  function cameraToNode(node, network) {
+      var nodeId = node.id;
+      var coordinateObj = network.getPositions([nodeId])[nodeId];
+      var cameraOptions = {
+          position: coordinateObj,
+          scale: 1.25,
+          offset: {x: 0, y: 0},
+          animation: {
+              duration: 1500,
+              easingFunction: "easeInCubic"
+          }
+      };
+      network.moveTo(cameraOptions);
+      network.selectNodes([nodeId], [true]);
+  }
+
   </script>
+
+  <br>
+<center>
+  <label for='brothersearch'> Find (527 people)
+  <select class="brothersearch" id="searchbar" style="width: 50%"></select>
+</label>
+</center>
+
+
+
+  <!-- Footer -->
+  <div class="panel-footer panel-custom">
+      <div class="container">
+          <div class="row">
+              <div class="col-lg-10 col-lg-offset-1 text-center">
+      <br>
+      <center>
+        <a href="home.html">
+          <img src="img/coatofarms.png" alt="" class="img-responsive">
+        </a>
+      </center>
+                  <h4><strong>Alpha Chi Sigma | Sigma Chapter</strong>
+                  </h4>
+                  <p>2627 Virginia Street<br>Berkeley, CA 94709</p>
+                  <ul class="list-unstyled">
+                      <li><i class="fa fa-envelope-o fa-fw"></i>President: <a href="mailto:axs.sigma.president@gmail.com">axs.sigma.president@gmail.com</a>
+                      </li>
+          <li><i class="fa fa-envelope-o fa-fw"></i>House Manager: <a href="mailto:administrator@axshouse.net">administrator@axshouse.net</a>
+                      </li>
+                  </ul>
+                  <br>
+                  <ul class="list-inline">
+                      <li>
+                          <a href="https://www.facebook.com/AXS.Sigma/"target="_blank"><i class="fa fa-facebook fa-fw fa-3x"></i></a>
+                      </li>
+                      <li>
+                          <a href="http://www.axshouse.net/" target="_blank"><i class="fa fa-map-marker fa-fw fa-3x"></i></a>
+                      </li>
+                  </ul>
+        <br>
+        <h4><strong>
+          <a href="http://www.alphachisigma.org/" target="_blank">Alpha Chi Sigma - Nationals</a> | <a href="http://chemistry.berkeley.edu/" target="_blank">UC Berkeley - College of Chemistry</a>
+        </strong></h4>
+                  <hr class="small">
+        <p class="text-muted">Copyright &copy; 2017 Alpha Chi Sigma | Sigma Chapter - Website created by <a href="mailto:emilyyao@berkeley.edu">Emily Yao</a>, maintained by <a href="mailto:axs.sigma.web@gmail.com">Mickey Vande Voorde</a>, family tree created by <a href="mailto:eric17zhu@gmail.com">Eric Zhu</a></p>                </div>
+          </div>
+      </div>
+  </div>
 </body>
 </html>
